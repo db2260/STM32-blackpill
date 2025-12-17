@@ -8,9 +8,8 @@ Implement a 100 Hz timer-triggered ADC acquisition system using DMA and transmit
 
 This short demo video explains the firmware architecture, build process, and execution flow of the project.
 
-▶️ **Click below to watch the demo video:**
+👉 [Watch Demo Video](./STM_32%20-%20Made%20with%20Clipchamp.mp4)
 
-[Watch Demo Video](./STM_32 Made with Clipchamp.mp4)
 
 ---
 
