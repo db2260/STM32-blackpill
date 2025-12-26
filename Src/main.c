@@ -1,9 +1,6 @@
 #include "stm32f411xe.h"
 
-/* ================= DEFINES ================= */
 #define ADC_BUF_LEN 16
-
-/* ================= GLOBALS ================= */
 volatile uint16_t adc_buffer[ADC_BUF_LEN];
 
 /* ================= CLOCK ================= */
@@ -13,21 +10,21 @@ void clock_init(void)
     while (!(RCC->CR & RCC_CR_HSIRDY));
 }
 
-/* ================= UART2 ================= */
-void uart2_init(void)
+/* ================= UART1 ================= */
+void uart1_init(void)
 {
-    RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
+    RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
 
-    /* PA2 → USART2_TX */
-    GPIOA->MODER &= ~(3U << (2 * 2));
-    GPIOA->MODER |=  (2U << (2 * 2));
+    /* PA9 → USART1_TX */
+    GPIOA->MODER &= ~(3U << (9 * 2));
+    GPIOA->MODER |=  (2U << (9 * 2));
 
-    GPIOA->AFR[0] &= ~(0xFU << (4 * 2));
-    GPIOA->AFR[0] |=  (7U   << (4 * 2));
+    GPIOA->AFR[1] &= ~(0xFU << (4 * (9 - 8))); // AFR[1], pin 9
+    GPIOA->AFR[1] |=  (7U   << (4 * (9 - 8)));
 
-    USART2->BRR = 16000000U / 115200U;
-    USART2->CR1 |= USART_CR1_TE | USART_CR1_UE;
+    USART1->BRR = 16000000U / 115200U;
+    USART1->CR1 |= USART_CR1_TE | USART_CR1_UE;
 }
 
 void uart_send_uint(uint16_t val)
@@ -45,24 +42,24 @@ void uart_send_uint(uint16_t val)
     }
 
     while (i--) {
-        while (!(USART2->SR & USART_SR_TXE));
-        USART2->DR = buf[i];
+        while (!(USART1->SR & USART_SR_TXE));
+        USART1->DR = buf[i];
     }
 
-    while (!(USART2->SR & USART_SR_TXE));
-    USART2->DR = '\n';
+    while (!(USART1->SR & USART_SR_TXE));
+    USART1->DR = '\n';
 }
 
-/* ================= TIM2 ================= */
-void tim2_init(void)
+/* ================= TIM3 ================= */
+void tim3_init(void)
 {
-    RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;
+    RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;
 
-    TIM2->PSC = 16000 - 1;   // 16 MHz / 16000 = 1 kHz
-    TIM2->ARR = 10 - 1;      // 1 kHz / 10 = 100 Hz
+    TIM3->PSC = 16000 - 1;   // 16 MHz / 16000 = 1 kHz
+    TIM3->ARR = 10 - 1;      // 1 kHz / 10 = 100 Hz
 
-    TIM2->CR2 |= TIM_CR2_MMS_1; // TRGO on update
-    TIM2->CR1 |= TIM_CR1_CEN;
+    TIM3->CR2 |= TIM_CR2_MMS_1; // TRGO on update
+    TIM3->CR1 |= TIM_CR1_CEN;
 }
 
 /* ================= DMA ================= */
@@ -83,7 +80,7 @@ void dma_init(void)
         DMA_SxCR_MSIZE_0;
 
     DMA2_Stream0->CR |= DMA_SxCR_EN;
-    NVIC_ENABLE_IRQ(DMA2_Stream0_IRQn);
+    NVIC_EnableIRQ(DMA2_Stream0_IRQn);
 }
 
 /* ================= ADC ================= */
@@ -102,7 +99,7 @@ void adc_init(void)
         ADC_CR2_DMA |
         ADC_CR2_DDS |
         ADC_CR2_EXTEN_0 |
-        (0b010U << ADC_CR2_EXTSEL_Pos) |
+        (0b100U << ADC_CR2_EXTSEL_Pos) | // TIM3_TRGO
         ADC_CR2_ADON;
 }
 
@@ -122,10 +119,10 @@ void DMA2_Stream0_IRQHandler(void)
 int main(void)
 {
     clock_init();
-    uart2_init();
+    uart1_init();
     dma_init();
     adc_init();
-    tim2_init();
+    tim3_init();
 
     while (1) {
         /* everything runs via interrupts */
